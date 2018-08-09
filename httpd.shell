@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+
+#Author:zfs
+
+#date:2018.7.4
+
+#Email:1870658887@qq.com
+
+
+
+yum -y install httpd
+
+systemctl start httpd
+
+cat <<-EOF > /etc/httpd/conf.d/wordpress.conf
+
+<VirtualHost *:80>
+
+    ServerName www.wordpress.com
+
+    DocumentRoot /var/www/wordpress
+
+</VirtualHost >
+
+<Directory  "var/www/wordpress">
+
+Require all granted
+
+</Directory>
+
+EOF
+
+cat <<-EOF > /etc/httpd/conf.d/edusoho.conf
+
+<VirtualHost *:80>
+
+ServerName www.edusoho.com
+
+DocumentRoot /var/www/edusoho/web
+
+</VirtualHost >
+
+<Directory "/var/www/edusoho/web">
+
+    Require all granted
+
+</Directory>
+
+EOF
+
+mkdir /var/www/wordpress
+
+mkdir /var/www/edusoho
+
+yum -y install mariadb mariadb-server expect
+
+systemctl start mariadb
+
+cat <<-EOF > /root/expectd
+
+#!/usr/bin/expect
+
+spawn mysqladmin -uroot -p password "zfs"
+
+expect "Enter password:"
+
+send "\r"
+
+interact
+
+EOF
+
+chmod a+x /root/expectd
+
+expect /root/expectd
+
+systemctl restart mariadb
+
+mysql -uroot -p"zfs" -e "create database wordpress;"
+
+mysql -uroot -p"zfs" -e "create database edusoho;"
+
+systemctl restart mariadb
+
+yum -y install php php-cli php-curl php-fpm php-intl php-mcrypt php-mysql php-gd php-mbstring php-xml php-dom
+
+systemctl start php-fpm
+
+sed -ri s/"post_max_size =8M"/"post_max_size =1024M"/g      /etc/php.ini
+
+sed -ri s/"memory_limit =128M"/"memory_limit =1024M"/g      /etc/php.ini
+
+sed -ri s/"post_max_size =2M"/"upload_max_filesize =1024M"/g      /etc/php.ini
+
+sed -ri s/";date.timezone ="/"date.timezone =Asia\/ShangHai"/g      /etc/php.ini
+
+systemctl restart php-fpm
+
+cd /root
+
+wget  http://download.edusoho.com/edusoho-7.5.12.tar.gz
+
+wget https://cn.wordpress.org/wordpress-4.9.4-zh_CN.tar.gz
+
+tar xf edusoho-7.5.12.tar.gz
+
+tar xf wordpress-4.9.4-zh_CN.tar.gz
+
+cp -rf /root/edusoho/* /var/www/edusoho/
+
+mv /root/wordpress/wp-config-sample.php /root/wordpress/wp-config.php
+
+sed -ri s/"database_name_here"/"wordpress"/g  /root/wordpress/wp-config.php
+
+sed -ri s/"username_here"/"root"/g  /root/wordpress/wp-config.php
+
+sed -ri s/"password_here"/"zfs"/g  /root/wordpress/wp-config.php
+
+cp -rf /root/wordpress/*  /var/www/wordpress/
+
+chown -R apache:apache /var/www/edusoho/*
+
+systemctl restart httpd mariadb php-fpm
