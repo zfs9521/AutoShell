@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+#Author:zfs
+
+#date:2018.7.4
+
+#Email:1870658887@qq.com
+
+yum -y install httpd mariadb mariadb-server php php-mysql php-gd gd
+
+systemctl start httpd mariadb
+
+yum -y install expect
+
+cat <<-EOF > /root/expectd
+
+#!usr/bin/expect
+
+spawn mysqladmin -uroot -p password "zfs"
+
+expect "Enter password:"
+
+send "\r"
+
+interact
+
+EOF
+
+chmod a+x expectd
+
+expect /root/expectd
+
+mysql -uroot -p"zfs"   -e   "create database wordpress;"
+
+wget -O /root/wordpress-4.9.4-zh_CN.tar.gz https://cn.wordpress.org/wordpress-4.9.4-zh_CN.tar.gz
+
+tar xf /root/wordpress-4.9.4-zh_CN.tar.gz  -C /root/
+
+mv /root/wordpress/wp-config-sample.php   /root/wordpress/wp-config.php
+
+sed -i s/database_name_here/wordpress/g    /root/wordpress/wp-config.php
+
+sed -i s/username_here/root/g  /root/wordpress/wp-config.php
+
+sed -i s/password_here/zfs/g   /root/wordpress/wp-config.php
+
+rm -rf   /var/www/html/*
+
+cp -rf   /root/wordpress/*   /var/www/html/
+
+systemctl restart httpd mariadb
